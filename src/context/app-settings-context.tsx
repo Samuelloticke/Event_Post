@@ -32,7 +32,7 @@ export interface AppSettings {
 }
 
 const initialSettings: AppSettings = {
-  templateUrl: '/default-template.png', // Fallback to a public local template
+  templateUrl: null, // No default template now
   overlayText: "J'y serai à Le Règne des Josias!",
   photoX: 10,
   photoY: 10,
