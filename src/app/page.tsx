@@ -2,7 +2,7 @@
 "use client";
 
 import type { ChangeEvent, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ const DEFAULT_TEMPLATE_HEIGHT = 1350;
 interface UserPhotoState {
   x: number; // percentage
   y: number; // percentage
-  scale: number; // multiplier, 1 = 100% of original photo size within bounds
+  scale: number; // multiplier
   widthPx: number; // original width of user photo in pixels
   heightPx: number; // original height of user photo in pixels
 }
@@ -49,13 +49,26 @@ export default function HomePage() {
   const [userPhotoState, setUserPhotoState] = useState<UserPhotoState>({
     x: settings.photoX,
     y: settings.photoY,
-    scale: 0.1, // Initial scale set to min as per previous request
+    scale: 0.1, 
     widthPx: 0,
     heightPx: 0,
   });
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const [previewContainerWidth, setPreviewContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (previewContainerRef.current) {
+        setPreviewContainerWidth(previewContainerRef.current.offsetWidth);
+      }
+    };
+    updateSize(); 
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
 
   useEffect(() => {
@@ -74,7 +87,7 @@ export default function HomePage() {
     setUserPhotoState({
       x: settings.photoX,
       y: settings.photoY,
-      scale: 0.1, // Reset scale to min
+      scale: 0.1,
       widthPx: imgWidth,
       heightPx: imgHeight,
     });
@@ -104,7 +117,7 @@ export default function HomePage() {
             setUserPhoto(null);
             setUserPhotoPreview(null);
             setIsUserPhotoDetailsLoading(false);
-            if (targetInput) targetInput.value = ''; // Clear input value
+            if (targetInput) targetInput.value = '';
         };
         img.src = previewUrl;
 
@@ -115,10 +128,10 @@ export default function HomePage() {
           description: translate('errorPhotoUploadInvalidType', {defaultValue: "Please upload a JPEG or PNG image."}),
           variant: 'destructive',
         });
-        if (targetInput) targetInput.value = ''; // Clear input value
+        if (targetInput) targetInput.value = '';
       }
     } else {
-        if (targetInput) targetInput.value = ''; // Clear input value if no file selected
+        if (targetInput) targetInput.value = '';
     }
   };
 
@@ -179,6 +192,36 @@ export default function HomePage() {
     setUserPhotoState(prev => ({ ...prev, scale: newScale[0] }));
   };
 
+  const calculateUserPhotoDimensions = useCallback((canvasWidth: number, canvasHeight: number) => {
+    if (!userPhotoState.widthPx || !userPhotoState.heightPx) {
+      return { width: 0, height: 0 };
+    }
+
+    const userPhotoAspectRatio = userPhotoState.widthPx / userPhotoState.heightPx;
+    
+    // Base slot dimensions in pixels based on admin settings (percentages of canvas)
+    let baseSlotWidthPx = (settings.photoWidth / 100) * canvasWidth;
+    let baseSlotHeightPx = (settings.photoHeight / 100) * canvasHeight;
+
+    // Apply user scale to the slot
+    let scaledSlotWidthPx = baseSlotWidthPx * userPhotoState.scale;
+    let scaledSlotHeightPx = baseSlotHeightPx * userPhotoState.scale;
+
+    let finalPhotoWidthPx = scaledSlotWidthPx;
+    let finalPhotoHeightPx = scaledSlotHeightPx;
+
+    if (settings.eventImageTemplate.transformControls.keepAspectRatio) {
+      // Fit photo into scaled slot while maintaining aspect ratio
+      if (userPhotoAspectRatio > (scaledSlotWidthPx / scaledSlotHeightPx)) { // Photo is wider than slot
+        finalPhotoHeightPx = scaledSlotWidthPx / userPhotoAspectRatio;
+      } else { // Photo is taller than or same aspect as slot
+        finalPhotoWidthPx = scaledSlotHeightPx * userPhotoAspectRatio;
+      }
+    }
+    
+    return { width: finalPhotoWidthPx, height: finalPhotoHeightPx };
+  }, [userPhotoState, settings]);
+
 
   const generateImage = async (event: FormEvent) => {
     event.preventDefault();
@@ -224,34 +267,23 @@ export default function HomePage() {
     templateImg.src = settings.eventImageTemplate.url;
 
     templateImg.onload = () => {
-      canvas.width = templateImg.naturalWidth || settings.templateWidth || DEFAULT_TEMPLATE_WIDTH;
-      canvas.height = templateImg.naturalHeight || settings.templateHeight || DEFAULT_TEMPLATE_HEIGHT;
+      const effectiveCanvasWidth = templateImg.naturalWidth || settings.templateWidth || DEFAULT_TEMPLATE_WIDTH;
+      const effectiveCanvasHeight = templateImg.naturalHeight || settings.templateHeight || DEFAULT_TEMPLATE_HEIGHT;
+      
+      canvas.width = effectiveCanvasWidth;
+      canvas.height = effectiveCanvasHeight;
 
       const userImg = new window.Image();
       userImg.src = userPhotoPreview!; 
       userImg.onload = () => {
-        const userPhotoAspectRatio = userPhotoState.widthPx / userPhotoState.heightPx;
-        
-        let basePhotoDisplayWidth = (settings.photoWidth / 100) * canvas.width;
-        let basePhotoDisplayHeight = (settings.photoHeight / 100) * canvas.height;
+        const { width: finalPhotoWidthPx, height: finalPhotoHeightPx } = 
+            calculateUserPhotoDimensions(effectiveCanvasWidth, effectiveCanvasHeight);
 
-        // Defaulting to user photo's natural aspect ratio for calculations if keepAspectRatio is true
-        // If not keeping aspect ratio, photoWidth/Height settings from admin dictate dimensions directly
-        let finalPhotoWidthPx = basePhotoDisplayWidth * userPhotoState.scale;
-        let finalPhotoHeightPx = basePhotoDisplayHeight * userPhotoState.scale;
+        const photoDrawX = (userPhotoState.x / 100) * effectiveCanvasWidth - (finalPhotoWidthPx / 2); 
+        const photoDrawY = (userPhotoState.y / 100) * effectiveCanvasHeight - (finalPhotoHeightPx / 2);
 
-        if (settings.eventImageTemplate.transformControls.keepAspectRatio) {
-          if (userPhotoAspectRatio > (basePhotoDisplayWidth / basePhotoDisplayHeight)) {
-              finalPhotoHeightPx = (basePhotoDisplayWidth / userPhotoAspectRatio) * userPhotoState.scale;
-          } else {
-              finalPhotoWidthPx = (basePhotoDisplayHeight * userPhotoAspectRatio) * userPhotoState.scale;
-          }
-        }
-        
-
-        const photoDrawX = (userPhotoState.x / 100) * canvas.width - (finalPhotoWidthPx / 2); 
-        const photoDrawY = (userPhotoState.y / 100) * canvas.height - (finalPhotoHeightPx / 2);
-
+        // Clear canvas before drawing
+        ctx.clearRect(0, 0, effectiveCanvasWidth, effectiveCanvasHeight);
 
         if (settings.eventImageTemplate.layering.userImageBelow) {
             ctx.drawImage(userImg, photoDrawX, photoDrawY, finalPhotoWidthPx, finalPhotoHeightPx);
@@ -259,16 +291,17 @@ export default function HomePage() {
 
         if (settings.eventImageTemplate.layering.templateOnTop) {
             ctx.globalAlpha = settings.eventImageTemplate.opacityOnIdle; 
-            ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(templateImg, 0, 0, effectiveCanvasWidth, effectiveCanvasHeight);
             ctx.globalAlpha = 1.0; 
         }
         
-        const nameFontSize = (settings.nameSize / 100) * Math.min(canvas.width, canvas.height) * 0.1;
+        // Draw name (No change here from previous, assuming it's correct)
+        const nameFontSize = (settings.nameSize / 100) * Math.min(effectiveCanvasWidth, effectiveCanvasHeight) * 0.1;
         ctx.font = `bold ${nameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-        ctx.fillStyle = settings.uiTheme.primaryColor || '#FFFFFF';
+        ctx.fillStyle = settings.uiTheme.primaryColor || '#FFFFFF'; // Fallback to white if not set
         ctx.textAlign = 'center';
-        const nameX = (settings.nameX / 100) * canvas.width;
-        const nameY = (settings.nameY / 100) * canvas.height;
+        const nameX = (settings.nameX / 100) * effectiveCanvasWidth;
+        const nameY = (settings.nameY / 100) * effectiveCanvasHeight;
         ctx.fillText(firstName, nameX, nameY);
         
         setGeneratedImage(canvas.toDataURL('image/png'));
@@ -298,24 +331,29 @@ export default function HomePage() {
     }
   };
 
+  const previewUserImageDimensions = useMemo(() => {
+      if (!previewContainerWidth || !userPhotoState.widthPx || !userPhotoState.heightPx) {
+        return { width: 0, height: 0 };
+      }
+      const containerAspectRatio = (settings.templateWidth || DEFAULT_TEMPLATE_WIDTH) / (settings.templateHeight || DEFAULT_TEMPLATE_HEIGHT);
+      const containerHeight = previewContainerWidth / containerAspectRatio;
+      
+      return calculateUserPhotoDimensions(previewContainerWidth, containerHeight);
+  }, [previewContainerWidth, userPhotoState, settings, calculateUserPhotoDimensions]);
+
+
   const previewUserImageStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${userPhotoState.x}%`,
     top: `${userPhotoState.y}%`,
-    width: settings.eventImageTemplate.transformControls.keepAspectRatio 
-      ? `${(userPhotoState.widthPx / (settings.templateWidth || DEFAULT_TEMPLATE_WIDTH)) * 100 * userPhotoState.scale}%`
-      : `${(settings.photoWidth / 100) * 100 * userPhotoState.scale}%`, // Width relative to container based on admin settings
-    height: settings.eventImageTemplate.transformControls.keepAspectRatio 
-      ? 'auto' // Maintain aspect ratio if width is set
-      : `${(settings.photoHeight / 100) * 100 * userPhotoState.scale}%`, // Height relative to container based on admin settings
-    aspectRatio: settings.eventImageTemplate.transformControls.keepAspectRatio 
-      ? `${userPhotoState.widthPx || 1} / ${userPhotoState.heightPx || 1}` 
-      : 'auto',
+    width: `${previewUserImageDimensions.width}px`,
+    height: `${previewUserImageDimensions.height}px`,
     transform: 'translate(-50%, -50%)', 
     maxWidth: 'none', 
     touchAction: 'none', 
     cursor: isDragging ? 'grabbing' : 'grab',
-    objectFit: 'contain', 
+    objectFit: 'contain',
+    visibility: generatedImage ? 'hidden' : 'visible', // Hide when final image is shown
   };
 
 
@@ -392,7 +430,7 @@ export default function HomePage() {
                     </Label>
                     <Slider
                       id="photoScale"
-                      min={0.01} // Allow scaling down to almost invisible
+                      min={0.01} 
                       max={2}
                       step={0.01}
                       value={[userPhotoState.scale]}
@@ -452,18 +490,17 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {userPhotoPreview && userPhotoState.widthPx > 0 && userPhotoState.heightPx > 0 && (
+                {userPhotoPreview && userPhotoState.widthPx > 0 && userPhotoState.heightPx > 0 && previewContainerWidth > 0 && (
                   <Image
                     ref={userImageRef}
                     src={userPhotoPreview}
                     alt="User photo"
-                    width={userPhotoState.widthPx} 
-                    height={userPhotoState.heightPx}
+                    width={userPhotoState.widthPx} // Original width for next/image optimization
+                    height={userPhotoState.heightPx} // Original height
                     style={previewUserImageStyle}
-                    className="object-contain" // Changed from object-cover for better scaling
                     draggable={false} 
                     data-ai-hint="user uploaded interactive"
-                    priority // Load user photo quickly for interaction
+                    priority 
                   />
                 )}
 
