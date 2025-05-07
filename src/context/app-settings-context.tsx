@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const SETTINGS_KEY = 'josiasEventSettings';
-// const TEMPLATE_STORAGE_PATH = 'eventTemplates/josias_template.png'; // Example path, not used in localStorage version
 
 const DEFAULT_TEMPLATE_WIDTH = 1080;
 const DEFAULT_TEMPLATE_HEIGHT = 1350;
@@ -15,16 +14,16 @@ export interface AppSettings {
     url: string | null;
     opacityOnDrag: number;
     opacityOnIdle: number;
-    preserveAspectRatio: boolean; // For the template itself, user photo aspect ratio is handled separately
+    preserveAspectRatio: boolean; 
     layering: {
       templateOnTop: boolean;
       userImageBelow: boolean;
     };
-    transformControls: { // These would be for direct manipulation if implemented
+    transformControls: { 
       enabled: boolean;
       draggable: boolean;
       scalable: boolean;
-      keepAspectRatio: boolean; // For user photo manipulation
+      keepAspectRatio: boolean; 
     };
     interaction: {
       resetOpacityOnMouseLeave: boolean;
@@ -34,20 +33,19 @@ export interface AppSettings {
     style: string;
     reference: string;
     backgroundColor: string;
-    primaryColor: string; // Interpreted as text color on primary elements
-    secondaryColorAuto: boolean; // For dynamic button/highlight color
-    // dominantTemplateColor: string | null; // To store extracted color
+    primaryColor: string; 
+    secondaryColorAuto: boolean; 
   };
   overlayText: string;
-  photoX: number; // Percentage
-  photoY: number; // Percentage
-  photoWidth: number; // Percentage
-  photoHeight: number; // Percentage
-  nameX: number; // Percentage
-  nameY: number; // Percentage
-  nameSize: number; // Percentage relative to min(canvasWidth, canvasHeight) * 0.1
-  templateWidth: number; // pixels, for canvas dimensions if template loaded
-  templateHeight: number; // pixels, for canvas dimensions if template loaded
+  photoX: number; 
+  photoY: number; 
+  photoWidth: number; 
+  photoHeight: number; 
+  nameX: number; 
+  nameY: number; 
+  nameSize: number; 
+  templateWidth: number; 
+  templateHeight: number; 
 }
 
 const initialSettings: AppSettings = {
@@ -61,7 +59,7 @@ const initialSettings: AppSettings = {
       userImageBelow: true,
     },
     transformControls: {
-      enabled: true, // Placeholder for future direct manipulation feature
+      enabled: true, 
       draggable: true,
       scalable: true,
       keepAspectRatio: true,
@@ -74,9 +72,8 @@ const initialSettings: AppSettings = {
     style: "minimal",
     reference: "Apple",
     backgroundColor: "#D6E5FF",
-    primaryColor: "#FFFFFF", // Text on primary buttons/elements
-    secondaryColorAuto: true, // Placeholder, actual color needs to be in globals.css or dynamic
-    // dominantTemplateColor: null,
+    primaryColor: "#FFFFFF", 
+    secondaryColorAuto: true, 
   },
   overlayText: "J'y serai à Le Règne des Josias!",
   photoX: 10,
@@ -96,7 +93,6 @@ interface AppSettingsContextType {
   uploadTemplate: (file: File) => Promise<string | null>;
   saveSettings: (settingsToSave: AppSettings) => Promise<void>;
   loading: boolean;
-  // extractDominantColor: (imageUrl: string) => Promise<string | null>; // For dynamic secondary color
 }
 
 const AppSettingsContext = createContext<AppSettingsContextType | undefined>(undefined);
@@ -110,6 +106,16 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     setIsMounted(true);
   }, []);
 
+  const prepareSettingsForStorage = (currentSettings: AppSettings): AppSettings => {
+    const settingsForStorage = JSON.parse(JSON.stringify(currentSettings)); // Deep clone
+    if (settingsForStorage.eventImageTemplate.url &&
+        typeof settingsForStorage.eventImageTemplate.url === 'string' &&
+        settingsForStorage.eventImageTemplate.url.startsWith('data:image/')) {
+      settingsForStorage.eventImageTemplate.url = null; // Omit large data URL
+    }
+    return settingsForStorage;
+  };
+
   useEffect(() => {
     if (!isMounted) return;
     setLoading(true);
@@ -117,8 +123,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       const storedSettings = localStorage.getItem(SETTINGS_KEY);
       if (storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
-        const completeSettings = { 
-          ...initialSettings, 
+        // Ensure all nested structures are present by merging with initialSettings
+        const completeSettings = {
+          ...initialSettings,
           ...parsedSettings,
           eventImageTemplate: {
             ...initialSettings.eventImageTemplate,
@@ -132,22 +139,32 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setAppSettingsState(completeSettings);
       } else {
         setAppSettingsState(initialSettings);
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(initialSettings));
+        // Persist initial settings (cleaned)
+        const initialSettingsForStorage = prepareSettingsForStorage(initialSettings);
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(initialSettingsForStorage));
       }
     } catch (error) {
       console.error("Failed to load settings from localStorage:", error);
-      setAppSettingsState(initialSettings);
+      setAppSettingsState(initialSettings); // Fallback to initial settings
     } finally {
       setLoading(false);
     }
   }, [isMounted]);
 
-  const setSettings = useCallback((newSettings: AppSettings) => {
-    setAppSettingsState(newSettings);
-     if (isMounted) {
-       localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-     }
-  }, [isMounted]);
+  const updateSettingsAndPersist = useCallback((newSettings: AppSettings) => {
+    setAppSettingsState(newSettings); // Update React state with potentially full data URL
+
+    if (isMounted) {
+      const settingsForStorage = prepareSettingsForStorage(newSettings);
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsForStorage));
+      } catch (e) {
+        console.error("LocalStorage setItem quota error or other issue in updateSettingsAndPersist:", e);
+        // Consider user notification (e.g., via toast) if quota is exceeded
+      }
+    }
+  }, [isMounted, setAppSettingsState]);
+
 
   const uploadTemplate = async (file: File): Promise<string | null> => {
     if (!isMounted) return null;
@@ -157,72 +174,50 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         const reader = new FileReader();
         reader.onloadend = () => {
           const dataUrl = reader.result as string;
-          setAppSettingsState(prev => {
-            const newSettings = {
-              ...prev,
-              eventImageTemplate: {
-                ...prev.eventImageTemplate,
-                url: dataUrl,
-              },
-            };
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-            return newSettings;
-          });
+          const newSettingsWithDataUrl = {
+            ...settings, // current settings from state
+            eventImageTemplate: {
+              ...settings.eventImageTemplate,
+              url: dataUrl,
+            },
+          };
+          updateSettingsAndPersist(newSettingsWithDataUrl); // Use centralized update and persist
           setLoading(false);
-          resolve(dataUrl); 
+          resolve(dataUrl);
         };
         reader.onerror = (error) => {
           setLoading(false);
+          console.error("Error reading file for template upload:", error);
           reject(error);
         };
         reader.readAsDataURL(file);
       });
     } catch (error) {
-      console.error("Error uploading template (simulated):", error);
+      console.error("Error processing template upload:", error);
       setLoading(false);
       return null;
     }
   };
   
-  const saveSettings = async (settingsToSave: AppSettings) => {
+  const saveSettingsAdmin = async (settingsToSave: AppSettings) => {
     if (!isMounted) return;
     setLoading(true);
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsToSave));
-      setAppSettingsState(settingsToSave);
+      updateSettingsAndPersist(settingsToSave); // settingsToSave may contain new data URL from admin form
     } catch (error) {
-      console.error("Error saving settings (simulated):", error);
-      throw error;
+      console.error("Error in saveSettingsAdmin operation:", error);
+      // Re-throw if the calling component (AdminPage) needs to handle it (e.g., for toasts)
+      // However, localStorage errors are caught within updateSettingsAndPersist
+      // This catch is more for errors *before* calling updateSettingsAndPersist if any existed.
+      // For now, we assume AdminPage handles its own toasts based on success/failure of this promise.
+      throw error; 
     } finally {
       setLoading(false);
     }
   };
 
-  // Placeholder for dominant color extraction - requires a library or complex canvas logic
-  // const extractDominantColor = async (imageUrl: string): Promise<string | null> => {
-  //   // Implementation would go here (e.g., using ColorThief.js or canvas API)
-  //   console.warn("extractDominantColor not implemented yet. imageUrl:", imageUrl);
-  //   return null; 
-  // };
-
-  // useEffect(() => {
-  //   if (isMounted && settings.uiTheme.secondaryColorAuto && settings.eventImageTemplate.url) {
-  //     extractDominantColor(settings.eventImageTemplate.url).then(color => {
-  //       if (color) {
-  //         setAppSettingsState(prev => ({
-  //           ...prev,
-  //           uiTheme: { ...prev.uiTheme, dominantTemplateColor: color }
-  //         }));
-  //         // Here you would also update a CSS variable, e.g.,
-  //         // document.documentElement.style.setProperty('--primary-dynamic', color);
-  //       }
-  //     });
-  //   }
-  // }, [isMounted, settings.uiTheme.secondaryColorAuto, settings.eventImageTemplate.url]);
-
-
   return (
-    <AppSettingsContext.Provider value={{ settings, setSettings, uploadTemplate, saveSettings, loading }}>
+    <AppSettingsContext.Provider value={{ settings, setSettings: updateSettingsAndPersist, uploadTemplate, saveSettings: saveSettingsAdmin, loading }}>
       {children}
     </AppSettingsContext.Provider>
   );
