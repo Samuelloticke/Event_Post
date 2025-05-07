@@ -3,108 +3,112 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 @layer base {
   :root {
-    --background: 209 45% 25%; /* Dark Blue #22425E */
-    --foreground: 0 0% 94%; /* Light Gray #F0F0F0 */
+    --background: 217 100% 92%; /* #D6E5FF Soft Blue */
+    --foreground: 210 10% 25%; /* Dark Blue-Gray text for readability */
 
-    --card: 209 45% 25%;
-    --card-foreground: 0 0% 94%;
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 210 10% 25%; /* Dark Blue-Gray text */
 
-    --popover: 209 45% 20%; /* Slightly darker blue for popovers */
-    --popover-foreground: 0 0% 94%;
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 210 10% 25%; /* Dark Blue-Gray text */
 
-    --primary: 157 100% 32%; /* Vibrant Teal #00A36C */
-    --primary-foreground: 0 0% 100%; /* White for text on teal */
+    /* Primary is for buttons and main interactive elements */
+    /* secondaryColorAuto will determine this dynamically. For now, a static professional blue. */
+    --primary: 210 90% 55%; /* Vibrant, professional blue */
+    --primary-foreground: 0 0% 100%; /* White text on primary elements */
 
-    --secondary: 209 30% 45%; /* Lighter blue for secondary elements */
-    --secondary-foreground: 0 0% 94%;
+    /* Secondary can be a lighter shade or a supporting color */
+    --secondary: 217 50% 88%; /* Lighter soft blue */
+    --secondary-foreground: 210 10% 30%; /* Darker text for secondary elements */
 
-    --muted: 209 30% 35%; /* Muted blue */
-    --muted-foreground: 0 0% 80%; /* Lighter gray for muted text */
+    --muted: 217 50% 94%; /* Very light blue/gray for muted backgrounds */
+    --muted-foreground: 210 10% 45%; /* Medium Gray for muted text */
 
-    --accent: 157 80% 42%; /* Slightly desaturated teal for accents */
-    --accent-foreground: 0 0% 100%;
+    /* Accent is for hover states or less prominent highlights */
+    --accent: 210 90% 60%; /* Slightly lighter/brighter blue than primary */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 98%; /* Light text on destructive */
 
-    --border: 209 30% 35%; /* Muted blue for borders */
-    --input: 209 30% 30%; /* Darker muted blue for input backgrounds */
-    --ring: 157 100% 32%; /* Teal for focus rings */
+    --border: 217 30% 82%; /* Subtle border for light theme */
+    --input: 0 0% 100%; /* White input background */
+    --ring: 210 90% 55%; /* Primary color for focus rings */
 
     --radius: 0.5rem;
 
     /* Chart colors (can be adjusted if charts are used) */
-    --chart-1: 157 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
+    --chart-1: 210 80% 60%;
+    --chart-2: 190 70% 55%;
+    --chart-3: 230 75% 65%;
+    --chart-4: 43 74% 66%; /* Keep some variety */
     --chart-5: 27 87% 67%;
 
-    /* Sidebar specific colors - keeping similar to main theme */
-    --sidebar-background: 209 45% 20%; /* Slightly darker blue for sidebar */
-    --sidebar-foreground: 0 0% 94%;
-    --sidebar-primary: 157 100% 32%;
+    /* Sidebar specific colors - adapt to light theme */
+    --sidebar-background: 217 80% 96%; /* Very light blue, almost white */
+    --sidebar-foreground: 210 10% 25%; /* Dark text */
+    --sidebar-primary: 210 90% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 157 80% 42%;
+    --sidebar-accent: 210 90% 60%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 209 30% 35%;
-    --sidebar-ring: 157 100% 32%;
+    --sidebar-border: 217 30% 88%;
+    --sidebar-ring: 210 90% 55%;
   }
 
   .dark {
-    /* Dark theme adjustments - For this app, the default IS dark.
-       If a light theme toggle were added, these would be distinct.
-       For now, we can make .dark identical or slightly varied if needed.
-       Let's assume the primary theme is already dark-first.
-    */
-    --background: 209 45% 25%;
-    --foreground: 0 0% 94%;
+    /* Keeping dark theme as a modified version of the original, if ever used */
+    --background: 209 45% 15%; /* Darker Blue for dark mode */
+    --foreground: 0 0% 94%; /* Light Gray */
 
-    --card: 209 45% 25%;
+    --card: 209 45% 20%;
     --card-foreground: 0 0% 94%;
 
-    --popover: 209 45% 20%;
+    --popover: 209 45% 18%; 
     --popover-foreground: 0 0% 94%;
 
-    --primary: 157 100% 32%;
-    --primary-foreground: 0 0% 100%;
+    /* For dark mode, primary might be the soft blue from user spec if it contrasts well */
+    --primary: 217 100% 85%; /* Lighter soft blue for dark mode primary */
+    --primary-foreground: 210 20% 15%; /* Dark text on light blue primary */
+    
+    /* Or keep a vibrant primary */
+    /* --primary: 157 100% 32%; /* Vibrant Teal */
+    /* --primary-foreground: 0 0% 100%; /* White for text on teal */
 
-    --secondary: 209 30% 45%;
-    --secondary-foreground: 0 0% 94%;
+    --secondary: 209 30% 35%; 
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 209 30% 35%;
-    --muted-foreground: 0 0% 80%;
+    --muted: 209 30% 28%; 
+    --muted-foreground: 0 0% 70%; 
 
-    --accent: 157 80% 42%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 217 100% 75%; /* Lighter soft blue for accent */
+    --accent-foreground: 210 20% 15%;
 
-    --destructive: 0 72.2% 50.6%; /* Slightly adjusted destructive for dark */
+    --destructive: 0 72.2% 50.6%; 
     --destructive-foreground: 0 0% 98%;
 
-    --border: 209 30% 35%;
-    --input: 209 30% 30%;
-    --ring: 157 100% 32%;
+    --border: 209 30% 30%; 
+    --input: 209 30% 25%; 
+    --ring: 217 100% 85%; 
 
-    /* Chart colors for dark theme */
     --chart-1: 157 70% 50%;
     --chart-2: 173 60% 45%;
     --chart-3: 197 50% 35%;
     --chart-4: 43 80% 55%;
     --chart-5: 27 90% 60%;
 
-    --sidebar-background: 209 45% 20%;
+    --sidebar-background: 209 45% 18%;
     --sidebar-foreground: 0 0% 94%;
-    --sidebar-primary: 157 100% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 157 80% 42%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 209 30% 35%;
-    --sidebar-ring: 157 100% 32%;
+    --sidebar-primary: 217 100% 85%;
+    --sidebar-primary-foreground: 210 20% 15%;
+    --sidebar-accent: 217 100% 75%;
+    --sidebar-accent-foreground: 210 20% 15%;
+    --sidebar-border: 209 30% 30%;
+    --sidebar-ring: 217 100% 85%;
   }
 }
 

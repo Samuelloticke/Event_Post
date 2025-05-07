@@ -5,18 +5,24 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/language-context';
 import { Button } from '@/components/ui/button';
 import { Globe } from 'lucide-react';
+import { useAppSettings } from '@/context/app-settings-context';
 
 export default function Header() {
   const { locale, setLocale, translate } = useLanguage();
+  const { settings } = useAppSettings();
 
   const toggleLanguage = () => {
     setLocale(locale === 'fr' ? 'en' : 'fr');
   };
 
   return (
-    <header className="py-6 px-4 md:px-8 shadow-md bg-background sticky top-0 z-50">
+    <header className="py-6 px-4 md:px-8 shadow-md sticky top-0 z-50" style={{ backgroundColor: settings.uiTheme.backgroundColor }}>
       <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="text-2xl md:text-3xl font-bold text-foreground hover:text-primary transition-colors">
+        <Link 
+          href="/" 
+          className="text-2xl md:text-3xl font-bold hover:opacity-80 transition-opacity"
+          style={{ color: settings.uiTheme.primaryColor }}
+        >
           {translate('appTitle')}
         </Link>
         <Button
@@ -24,7 +30,8 @@ export default function Header() {
           size="icon"
           onClick={toggleLanguage}
           aria-label={locale === 'fr' ? 'Switch to English' : 'Passer en Français'}
-          className="text-foreground hover:text-primary"
+          className="hover:bg-transparent hover:opacity-80"
+          style={{ color: settings.uiTheme.primaryColor }}
         >
           <Globe className="h-6 w-6" />
           <span className="ml-2 font-semibold">{locale === 'fr' ? 'EN' : 'FR'}</span>

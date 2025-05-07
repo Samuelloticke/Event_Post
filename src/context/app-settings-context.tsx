@@ -3,22 +3,41 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-// Firebase SDK stubs if not fully integrating Firebase in this step
-// These would be replaced by actual Firebase SDK imports and initialization
-// e.g. import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-// e.g. import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
-// e.g. import firebaseApp from "@/lib/firebase"; // Your firebase init file
 
-// const storage = getStorage(firebaseApp);
-// const db = getFirestore(firebaseApp);
 const SETTINGS_KEY = 'josiasEventSettings';
-const TEMPLATE_STORAGE_PATH = 'eventTemplates/josias_template.png'; // Example path
+// const TEMPLATE_STORAGE_PATH = 'eventTemplates/josias_template.png'; // Example path, not used in localStorage version
 
 const DEFAULT_TEMPLATE_WIDTH = 1080;
 const DEFAULT_TEMPLATE_HEIGHT = 1350;
 
 export interface AppSettings {
-  templateUrl: string | null;
+  eventImageTemplate: {
+    url: string | null;
+    opacityOnDrag: number;
+    opacityOnIdle: number;
+    preserveAspectRatio: boolean; // For the template itself, user photo aspect ratio is handled separately
+    layering: {
+      templateOnTop: boolean;
+      userImageBelow: boolean;
+    };
+    transformControls: { // These would be for direct manipulation if implemented
+      enabled: boolean;
+      draggable: boolean;
+      scalable: boolean;
+      keepAspectRatio: boolean; // For user photo manipulation
+    };
+    interaction: {
+      resetOpacityOnMouseLeave: boolean;
+    };
+  };
+  uiTheme: {
+    style: string;
+    reference: string;
+    backgroundColor: string;
+    primaryColor: string; // Interpreted as text color on primary elements
+    secondaryColorAuto: boolean; // For dynamic button/highlight color
+    // dominantTemplateColor: string | null; // To store extracted color
+  };
   overlayText: string;
   photoX: number; // Percentage
   photoY: number; // Percentage
@@ -27,12 +46,38 @@ export interface AppSettings {
   nameX: number; // Percentage
   nameY: number; // Percentage
   nameSize: number; // Percentage relative to min(canvasWidth, canvasHeight) * 0.1
-  templateWidth: number; // pixels
-  templateHeight: number; // pixels
+  templateWidth: number; // pixels, for canvas dimensions if template loaded
+  templateHeight: number; // pixels, for canvas dimensions if template loaded
 }
 
 const initialSettings: AppSettings = {
-  templateUrl: null, // No default template now
+  eventImageTemplate: {
+    url: null,
+    opacityOnDrag: 0.7,
+    opacityOnIdle: 1.0,
+    preserveAspectRatio: true,
+    layering: {
+      templateOnTop: true,
+      userImageBelow: true,
+    },
+    transformControls: {
+      enabled: true, // Placeholder for future direct manipulation feature
+      draggable: true,
+      scalable: true,
+      keepAspectRatio: true,
+    },
+    interaction: {
+      resetOpacityOnMouseLeave: true,
+    },
+  },
+  uiTheme: {
+    style: "minimal",
+    reference: "Apple",
+    backgroundColor: "#D6E5FF",
+    primaryColor: "#FFFFFF", // Text on primary buttons/elements
+    secondaryColorAuto: true, // Placeholder, actual color needs to be in globals.css or dynamic
+    // dominantTemplateColor: null,
+  },
   overlayText: "J'y serai à Le Règne des Josias!",
   photoX: 10,
   photoY: 10,
@@ -47,10 +92,11 @@ const initialSettings: AppSettings = {
 
 interface AppSettingsContextType {
   settings: AppSettings;
-  setSettings: (settings: AppSettings) => void; // Direct set for local updates
-  uploadTemplate: (file: File) => Promise<string | null>; // Returns new URL or null
+  setSettings: (settings: AppSettings) => void;
+  uploadTemplate: (file: File) => Promise<string | null>;
   saveSettings: (settingsToSave: AppSettings) => Promise<void>;
   loading: boolean;
+  // extractDominantColor: (imageUrl: string) => Promise<string | null>; // For dynamic secondary color
 }
 
 const AppSettingsContext = createContext<AppSettingsContextType | undefined>(undefined);
@@ -64,7 +110,6 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     setIsMounted(true);
   }, []);
 
-  // Load settings from localStorage (simulating Firestore)
   useEffect(() => {
     if (!isMounted) return;
     setLoading(true);
@@ -72,17 +117,26 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       const storedSettings = localStorage.getItem(SETTINGS_KEY);
       if (storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
-        // Ensure all keys from initialSettings are present, providing defaults if not
-        const completeSettings = { ...initialSettings, ...parsedSettings };
+        const completeSettings = { 
+          ...initialSettings, 
+          ...parsedSettings,
+          eventImageTemplate: {
+            ...initialSettings.eventImageTemplate,
+            ...(parsedSettings.eventImageTemplate || {}),
+          },
+          uiTheme: {
+            ...initialSettings.uiTheme,
+            ...(parsedSettings.uiTheme || {}),
+          }
+        };
         setAppSettingsState(completeSettings);
       } else {
-        // If nothing in localStorage, ensure initialSettings (with default template) are used.
         setAppSettingsState(initialSettings);
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(initialSettings)); // Save initial if not present
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(initialSettings));
       }
     } catch (error) {
       console.error("Failed to load settings from localStorage:", error);
-      setAppSettingsState(initialSettings); // Fallback to initial if error
+      setAppSettingsState(initialSettings);
     } finally {
       setLoading(false);
     }
@@ -95,28 +149,25 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
      }
   }, [isMounted]);
 
-
   const uploadTemplate = async (file: File): Promise<string | null> => {
     if (!isMounted) return null;
     setLoading(true);
     try {
-      // Simulate Firebase Storage upload
-      // In a real Firebase app:
-      // const templateRef = storageRef(storage, TEMPLATE_STORAGE_PATH);
-      // await uploadBytes(templateRef, file);
-      // const downloadURL = await getDownloadURL(templateRef);
-      
-      // For localStorage simulation, we'll use a data URL.
-      // This is not ideal for large files but works for demonstration.
-      // A real app MUST use Firebase Storage or similar.
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           const dataUrl = reader.result as string;
-          // To simulate "storing" it, we can update settings with this dataUrl
-          // In a real app, this URL comes from Firebase.
-          setAppSettingsState(prev => ({...prev, templateUrl: dataUrl})); 
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify({...settings, templateUrl: dataUrl}));
+          setAppSettingsState(prev => {
+            const newSettings = {
+              ...prev,
+              eventImageTemplate: {
+                ...prev.eventImageTemplate,
+                url: dataUrl,
+              },
+            };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+            return newSettings;
+          });
           setLoading(false);
           resolve(dataUrl); 
         };
@@ -126,7 +177,6 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         };
         reader.readAsDataURL(file);
       });
-
     } catch (error) {
       console.error("Error uploading template (simulated):", error);
       setLoading(false);
@@ -138,16 +188,37 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     if (!isMounted) return;
     setLoading(true);
     try {
-      // Simulate saving to Firestore
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsToSave));
-      setAppSettingsState(settingsToSave); // Update state after "saving"
+      setAppSettingsState(settingsToSave);
     } catch (error) {
       console.error("Error saving settings (simulated):", error);
-      throw error; // Re-throw to be caught by caller
+      throw error;
     } finally {
       setLoading(false);
     }
   };
+
+  // Placeholder for dominant color extraction - requires a library or complex canvas logic
+  // const extractDominantColor = async (imageUrl: string): Promise<string | null> => {
+  //   // Implementation would go here (e.g., using ColorThief.js or canvas API)
+  //   console.warn("extractDominantColor not implemented yet. imageUrl:", imageUrl);
+  //   return null; 
+  // };
+
+  // useEffect(() => {
+  //   if (isMounted && settings.uiTheme.secondaryColorAuto && settings.eventImageTemplate.url) {
+  //     extractDominantColor(settings.eventImageTemplate.url).then(color => {
+  //       if (color) {
+  //         setAppSettingsState(prev => ({
+  //           ...prev,
+  //           uiTheme: { ...prev.uiTheme, dominantTemplateColor: color }
+  //         }));
+  //         // Here you would also update a CSS variable, e.g.,
+  //         // document.documentElement.style.setProperty('--primary-dynamic', color);
+  //       }
+  //     });
+  //   }
+  // }, [isMounted, settings.uiTheme.secondaryColorAuto, settings.eventImageTemplate.url]);
 
 
   return (
