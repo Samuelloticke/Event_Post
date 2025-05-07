@@ -358,7 +358,7 @@ export default function HomePage() {
                     </Label>
                     <Slider
                       id="photoScale"
-                      min={0.5}
+                      min={0.1}
                       max={2}
                       step={0.01}
                       value={[userPhotoState.scale]}
@@ -500,3 +500,4 @@ declare module '@/context/language-context' {
     translate(key: keyof typeof import('@/locales/en.json'), params?: Record<string, string | number>): string;
   }
 }
+
