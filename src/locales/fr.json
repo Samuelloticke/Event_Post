@@ -1,3 +1,4 @@
+
 {
   "appTitle": "Le Règne des Josias",
   "appSubtitle": "Générez votre image personnalisée",
@@ -18,8 +19,6 @@
   "uploadFileButton": "Télécharger un fichier",
   "pngOnlyHint": "PNG uniquement.",
   "recommendedSizeHint": "Recommandé :",
-  "adminOverlayTextLabel": "Texte de superposition",
-  "adminOverlayTextPlaceholder": "Ex: J'y serai à Le Règne des Josias",
   "adminPhotoXLabel": "Position X de la photo",
   "adminPhotoYLabel": "Position Y de la photo",
   "adminPhotoWidthLabel": "Largeur de la photo",
@@ -53,9 +52,10 @@
   "currentTemplate": "Modèle actuel",
   "noTemplateUploaded": "Aucun modèle téléchargé",
   "noImageGenerated": "Votre image générée apparaîtra ici.",
-  "configSectionTitle": "Configuration de la Superposition de Contenu",
-  "adminConfigDescription": "Configurez comment le contenu utilisateur (nom, texte de superposition) est placé sur l'image.",
-  "photoSettingsTitle": "Placement de la Photo Utilisateur (% relatif)",
+  "configSectionTitle": "Placement du Contenu Utilisateur",
+  "adminConfigDescription": "Configurez comment le contenu utilisateur (nom) est placé sur l'image. La position et l'échelle de la photo sont des valeurs initiales, l'utilisateur peut les ajuster.",
+  "photoSettingsTitle": "Placement et Taille Initials de la Photo Utilisateur (% relatif)",
+  "adminPhotoSettingsDescription": "Définissez la position et la taille initiales de la photo de l'utilisateur. Les utilisateurs peuvent ajuster cela sur la page principale.",
   "nameSettingsTitle": "Placement du Nom Utilisateur (% relatif)",
   "templateUploadSectionTitle": "Gestion du Modèle d'Événement",
   "adminUiThemeTitle": "Configuration du Thème UI",
@@ -68,5 +68,8 @@
   "adminOpacityOnDragLabel": "Opacité du Modèle lors du Glisser/Interagir (0.0-1.0)",
   "adminOpacityOnIdleLabel": "Opacité du Modèle au Repos (0.0-1.0)",
   "adminResetOpacityOnLeaveLabel": "Réinitialiser l'opacité du modèle au repos lorsque la souris quitte la zone interactive",
-  "adminKeepUserPhotoAspectRatioLabel": "Verrouiller le ratio d'aspect de la photo utilisateur lors du redimensionnement (interaction utilisateur - fonctionnalité future)"
+  "adminKeepUserPhotoAspectRatioLabel": "Verrouiller le ratio d'aspect de la photo utilisateur lors du redimensionnement",
+  "scalePhotoLabel": "Redimensionner la Photo",
+  "imagePreviewHintDragScale": "Faites glisser votre photo pour la positionner. Utilisez le curseur pour redimensionner.",
+  "dragToMoveHint": "Glisser pour déplacer"
 }

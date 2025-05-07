@@ -1,3 +1,4 @@
+
 {
   "appTitle": "The Reign of Josias",
   "appSubtitle": "Generate your personalized image",
@@ -18,8 +19,6 @@
   "uploadFileButton": "Upload a file",
   "pngOnlyHint": "PNG only.",
   "recommendedSizeHint": "Recommended:",
-  "adminOverlayTextLabel": "Overlay text",
-  "adminOverlayTextPlaceholder": "E.g., I'll be there at The Reign of Josias",
   "adminPhotoXLabel": "Photo X position",
   "adminPhotoYLabel": "Photo Y position",
   "adminPhotoWidthLabel": "Photo width",
@@ -53,9 +52,10 @@
   "currentTemplate": "Current Template",
   "noTemplateUploaded": "No template uploaded",
   "noImageGenerated": "Your generated image will appear here.",
-  "configSectionTitle": "Content Overlay Configuration",
-  "adminConfigDescription": "Configure how user content (name, overlay text) is placed on the image.",
-  "photoSettingsTitle": "User Photo Placement (relative %)",
+  "configSectionTitle": "User Content Placement",
+  "adminConfigDescription": "Configure how user content (name) is placed on the image. Photo position and scale are initial defaults, user can adjust.",
+  "photoSettingsTitle": "User Photo Initial Placement & Size (relative %)",
+  "adminPhotoSettingsDescription": "Define the initial position and size of the user's photo. Users can adjust this on the main page.",
   "nameSettingsTitle": "User Name Placement (relative %)",
   "templateUploadSectionTitle": "Event Template Management",
   "adminUiThemeTitle": "UI Theme Configuration",
@@ -68,5 +68,8 @@
   "adminOpacityOnDragLabel": "Template Opacity on Drag/Interact (0.0-1.0)",
   "adminOpacityOnIdleLabel": "Template Opacity on Idle (0.0-1.0)",
   "adminResetOpacityOnLeaveLabel": "Reset template opacity to idle when mouse leaves interactive area",
-  "adminKeepUserPhotoAspectRatioLabel": "Lock user photo's aspect ratio during resize (user interaction - future feature)"
+  "adminKeepUserPhotoAspectRatioLabel": "Lock user photo's aspect ratio during resize",
+  "scalePhotoLabel": "Scale Photo",
+  "imagePreviewHintDragScale": "Drag your photo to position it. Use the slider to scale.",
+  "dragToMoveHint": "Drag to move"
 }

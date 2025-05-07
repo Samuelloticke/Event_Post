@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
+// import { Textarea } from '@/components/ui/textarea'; // Removed
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/language-context';
 import { useAppSettings } from '@/context/app-settings-context';
-import { UploadCloud, Save, Settings, Image as ImageIconLucide, Palette, Ratio, MousePointerClick } from 'lucide-react';
+import { UploadCloud, Save, Settings, Image as ImageIconLucide, Palette, Ratio } from 'lucide-react';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 
@@ -32,7 +32,13 @@ export default function AdminPage() {
   const [localSettings, setLocalSettings] = useState(settings);
 
   useEffect(() => {
-    setLocalSettings(settings);
+    // Ensure localSettings always reflects the context, especially after context might remove overlayText
+    const currentContextSettings = JSON.parse(JSON.stringify(settings));
+    if ('overlayText' in currentContextSettings) {
+      delete currentContextSettings.overlayText;
+    }
+    setLocalSettings(currentContextSettings);
+
     if (settings.eventImageTemplate.url) {
       setTemplatePreview(settings.eventImageTemplate.url);
     }
@@ -55,12 +61,12 @@ export default function AdminPage() {
     }
   };
 
-  const handleSettingChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleSettingChange = (event: ChangeEvent<HTMLInputElement /*| HTMLTextAreaElement*/>) => { // Removed HTMLTextAreaElement
     const { name, value, type } = event.target;
     const keys = name.split('.');
     
     setLocalSettings(prev => {
-      const newSettings = JSON.parse(JSON.stringify(prev)); // Deep clone
+      const newSettings = JSON.parse(JSON.stringify(prev)); 
       let currentLevel = newSettings;
       keys.forEach((key, index) => {
         if (index === keys.length - 1) {
@@ -112,6 +118,11 @@ export default function AdminPage() {
           url: newTemplateUrl || settings.eventImageTemplate.url,
         }
       };
+      // Ensure overlayText is not saved
+      if ('overlayText' in settingsToSave) {
+        delete (settingsToSave as any).overlayText;
+      }
+
       await saveContextSettings(settingsToSave);
       toast({ title: translate('configSavedSuccess') });
     } catch (error) {
@@ -237,25 +248,29 @@ export default function AdminPage() {
 
           <Card className="shadow-xl bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle className="flex items-center text-primary"><Settings className="mr-2 h-6 w-6" />{translate('configSectionTitle')}</CardTitle>
-              <CardDescription className="text-muted-foreground">{translate('adminConfigDescription')}</CardDescription>
+              <CardTitle className="flex items-center text-primary"><Settings className="mr-2 h-6 w-6" />{translate('configSectionTitle')}</CardTitle> {/* configSectionTitle might need update if it was specific to overlayText */}
+              <CardDescription className="text-muted-foreground">{translate('adminConfigDescription')}</CardDescription> {/* Same for adminConfigDescription */}
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Overlay Text Section Removed */}
+              {/*
               <div>
                 <Label htmlFor="overlayText" className="text-lg font-medium text-foreground">{translate('adminOverlayTextLabel')}</Label>
                 <Textarea
                   id="overlayText"
                   name="overlayText"
-                  value={localSettings.overlayText || ''}
+                  value={(localSettings as any).overlayText || ''} // Cast to any if overlayText is removed from type
                   onChange={handleSettingChange}
                   placeholder={translate('adminOverlayTextPlaceholder')}
                   className="mt-2 bg-input text-foreground"
                   rows={2}
                 />
               </div>
+              */}
 
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-foreground border-b border-border pb-2">{translate('photoSettingsTitle')}</h3>
+                <p className="text-sm text-muted-foreground">{translate('adminPhotoSettingsDescription', {defaultValue: "Define the initial position and size of the user's photo. Users can adjust this on the main page."})}</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="photoX" className="text-foreground">{translate('adminPhotoXLabel')} (%)</Label>
@@ -324,5 +339,7 @@ declare module '@/context/language-context' {
     translate(key: string, params?: Record<string, string | number>): string;
     translate(key: keyof typeof import('@/locales/fr.json'), params?: Record<string, string | number>): string;
     translate(key: keyof typeof import('@/locales/en.json'), params?: Record<string, string | number>): string;
+    translate(key: keyof typeof import('@/locales/en.json'), params?: Record<string, string | number>): string;
   }
 }
+

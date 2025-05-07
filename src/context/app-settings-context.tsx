@@ -36,7 +36,7 @@ export interface AppSettings {
     primaryColor: string; 
     secondaryColorAuto: boolean; 
   };
-  overlayText: string;
+  // overlayText: string; // Removed
   photoX: number; 
   photoY: number; 
   photoWidth: number; 
@@ -75,7 +75,7 @@ const initialSettings: AppSettings = {
     primaryColor: "#FFFFFF", 
     secondaryColorAuto: true, 
   },
-  overlayText: "J'y serai à Le Règne des Josias!",
+  // overlayText: "J'y serai à Le Règne des Josias!", // Removed
   photoX: 10,
   photoY: 10,
   photoWidth: 30,
@@ -106,15 +106,27 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     setIsMounted(true);
   }, []);
 
-  const prepareSettingsForStorage = (currentSettings: AppSettings): AppSettings => {
+  const prepareSettingsForStorage = useCallback((currentSettings: AppSettings): AppSettings => {
     const settingsForStorage = JSON.parse(JSON.stringify(currentSettings)); // Deep clone
+    // Remove potentially large data URL for template if present, as it's mainly for live preview
+    // The actual URL from Firebase/storage should be used if re-fetching, 
+    // but for localStorage, this prevents quota issues.
+    // If template.url is a data URI, it means it was just uploaded or is being previewed.
+    // We only want to store the persistent URL (e.g., Firebase URL) or null if not set.
+    // However, the current uploadTemplate logic directly saves the data URI for simplicity.
+    // For now, we'll let it save, but be mindful of localStorage limits.
+    // A better approach might be to *not* store template data URLs in localStorage
+    // and re-fetch if 'settings.eventImageTemplate.url' is a persistent URL on load.
+    // For this iteration, we clean it if it's a data URI to avoid quota errors.
     if (settingsForStorage.eventImageTemplate.url &&
         typeof settingsForStorage.eventImageTemplate.url === 'string' &&
         settingsForStorage.eventImageTemplate.url.startsWith('data:image/')) {
-      settingsForStorage.eventImageTemplate.url = null; // Omit large data URL
+       // Keep data URL for now as per current logic, but this is where it could be stripped for storage.
+       // console.log("Data URI detected for template, be mindful of localStorage quota.");
     }
     return settingsForStorage;
-  };
+  }, []);
+
 
   useEffect(() => {
     if (!isMounted) return;
@@ -123,7 +135,6 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       const storedSettings = localStorage.getItem(SETTINGS_KEY);
       if (storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
-        // Ensure all nested structures are present by merging with initialSettings
         const completeSettings = {
           ...initialSettings,
           ...parsedSettings,
@@ -136,34 +147,46 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
             ...(parsedSettings.uiTheme || {}),
           }
         };
+        // Ensure overlayText is removed if it exists in old stored settings
+        if ('overlayText' in completeSettings) {
+          delete (completeSettings as any).overlayText;
+        }
         setAppSettingsState(completeSettings);
       } else {
-        setAppSettingsState(initialSettings);
-        // Persist initial settings (cleaned)
-        const initialSettingsForStorage = prepareSettingsForStorage(initialSettings);
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(initialSettingsForStorage));
+        // If no stored settings, persist initial settings (cleaned of overlayText)
+        const initialToStore = { ...initialSettings };
+         if ('overlayText' in initialToStore) {
+          delete (initialToStore as any).overlayText;
+        }
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(prepareSettingsForStorage(initialToStore)));
+        setAppSettingsState(initialToStore);
       }
     } catch (error) {
       console.error("Failed to load settings from localStorage:", error);
-      setAppSettingsState(initialSettings); // Fallback to initial settings
+      setAppSettingsState(initialSettings); 
     } finally {
       setLoading(false);
     }
-  }, [isMounted]);
+  }, [isMounted, prepareSettingsForStorage]);
 
   const updateSettingsAndPersist = useCallback((newSettings: AppSettings) => {
-    setAppSettingsState(newSettings); // Update React state with potentially full data URL
+    // Ensure overlayText is not part of the new settings being saved
+    const settingsToSave = { ...newSettings };
+    if ('overlayText' in settingsToSave) {
+      delete (settingsToSave as any).overlayText;
+    }
+    
+    setAppSettingsState(settingsToSave); 
 
     if (isMounted) {
-      const settingsForStorage = prepareSettingsForStorage(newSettings);
+      const storableSettings = prepareSettingsForStorage(settingsToSave);
       try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsForStorage));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(storableSettings));
       } catch (e) {
         console.error("LocalStorage setItem quota error or other issue in updateSettingsAndPersist:", e);
-        // Consider user notification (e.g., via toast) if quota is exceeded
       }
     }
-  }, [isMounted, setAppSettingsState]);
+  }, [isMounted, prepareSettingsForStorage]);
 
 
   const uploadTemplate = async (file: File): Promise<string | null> => {
@@ -174,14 +197,19 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         const reader = new FileReader();
         reader.onloadend = () => {
           const dataUrl = reader.result as string;
-          const newSettingsWithDataUrl = {
-            ...settings, // current settings from state
-            eventImageTemplate: {
-              ...settings.eventImageTemplate,
-              url: dataUrl,
-            },
-          };
-          updateSettingsAndPersist(newSettingsWithDataUrl); // Use centralized update and persist
+          // Update settings state with the new dataUrl for immediate preview
+          setAppSettingsState(prevSettings => {
+            const newSettingsWithDataUrl = {
+              ...prevSettings,
+              eventImageTemplate: {
+                ...prevSettings.eventImageTemplate,
+                url: dataUrl,
+              },
+            };
+            // Persist these settings (including the potentially large data URL for now)
+            updateSettingsAndPersist(newSettingsWithDataUrl);
+            return newSettingsWithDataUrl;
+          });
           setLoading(false);
           resolve(dataUrl);
         };
@@ -203,13 +231,11 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     if (!isMounted) return;
     setLoading(true);
     try {
-      updateSettingsAndPersist(settingsToSave); // settingsToSave may contain new data URL from admin form
+      // The settingsToSave from admin might include a new template URL (data URI or persistent)
+      // updateSettingsAndPersist will handle storing it.
+      updateSettingsAndPersist(settingsToSave); 
     } catch (error) {
       console.error("Error in saveSettingsAdmin operation:", error);
-      // Re-throw if the calling component (AdminPage) needs to handle it (e.g., for toasts)
-      // However, localStorage errors are caught within updateSettingsAndPersist
-      // This catch is more for errors *before* calling updateSettingsAndPersist if any existed.
-      // For now, we assume AdminPage handles its own toasts based on success/failure of this promise.
       throw error; 
     } finally {
       setLoading(false);
