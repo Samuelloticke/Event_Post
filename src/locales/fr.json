@@ -35,6 +35,7 @@
   "savingConfig": "Sauvegarde...",
   "errorPhotoUpload": "Erreur lors du téléchargement de la photo.",
   "errorPhotoLoad": "Erreur lors du chargement de la photo utilisateur pour la génération.",
+  "errorPhotoLoadGeneric": "Impossible de charger l'image sélectionnée pour l'aperçu.",
   "errorTemplateLoad": "Erreur lors du chargement de l'image du modèle.",
   "errorTemplateLoadAdmin": "Échec du chargement du modèle d'événement. Veuillez vérifier les paramètres admin.",
   "errorNameRequired": "Veuillez entrer votre prénom.",
@@ -71,5 +72,9 @@
   "adminKeepUserPhotoAspectRatioLabel": "Verrouiller le ratio d'aspect de la photo utilisateur lors du redimensionnement",
   "scalePhotoLabel": "Redimensionner la Photo",
   "imagePreviewHintDragScale": "Faites glisser votre photo pour la positionner. Utilisez le curseur pour redimensionner.",
-  "dragToMoveHint": "Glisser pour déplacer"
+  "dragToMoveHint": "Glisser pour déplacer",
+  "processingPhotoMessage": "Traitement de la photo...",
+  "errorProcessingPhotoTitle": "Traitement de la Photo",
+  "errorProcessingPhotoDesc": "Veuillez attendre que la photo soit entièrement traitée avant de générer l'image."
 }
+

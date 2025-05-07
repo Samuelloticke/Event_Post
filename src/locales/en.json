@@ -35,6 +35,7 @@
   "savingConfig": "Saving...",
   "errorPhotoUpload": "Error uploading photo.",
   "errorPhotoLoad": "Error loading user photo for generation.",
+  "errorPhotoLoadGeneric": "Could not load the selected image for preview.",
   "errorTemplateLoad": "Error loading template image.",
   "errorTemplateLoadAdmin": "Failed to load the event template. Please check admin settings.",
   "errorNameRequired": "Please enter your first name.",
@@ -71,5 +72,9 @@
   "adminKeepUserPhotoAspectRatioLabel": "Lock user photo's aspect ratio during resize",
   "scalePhotoLabel": "Scale Photo",
   "imagePreviewHintDragScale": "Drag your photo to position it. Use the slider to scale.",
-  "dragToMoveHint": "Drag to move"
+  "dragToMoveHint": "Drag to move",
+  "processingPhotoMessage": "Processing photo...",
+  "errorProcessingPhotoTitle": "Photo Processing",
+  "errorProcessingPhotoDesc": "Please wait for the photo to be fully processed before generating."
 }
+

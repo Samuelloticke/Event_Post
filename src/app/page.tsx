@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/language-context';
 import { useAppSettings } from '@/context/app-settings-context';
-import { UploadCloud, Download, Zap, Image as ImageIconLucide, User, TextCursorInput, ZoomIn, Move } from 'lucide-react';
+import { UploadCloud, Download, Zap, Image as ImageIconLucide, User, TextCursorInput, ZoomIn, Move, Loader2 } from 'lucide-react';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,6 +34,7 @@ export default function HomePage() {
   const [firstName, setFirstName] = useState('');
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUserPhotoDetailsLoading, setIsUserPhotoDetailsLoading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const userImageRef = useRef<HTMLImageElement>(null);
@@ -48,7 +49,7 @@ export default function HomePage() {
   const [userPhotoState, setUserPhotoState] = useState<UserPhotoState>({
     x: settings.photoX,
     y: settings.photoY,
-    scale: 1,
+    scale: 0.1, // Initial scale set to min as per previous request
     widthPx: 0,
     heightPx: 0,
   });
@@ -73,16 +74,18 @@ export default function HomePage() {
     setUserPhotoState({
       x: settings.photoX,
       y: settings.photoY,
-      scale: 1,
+      scale: 0.1, // Reset scale to min
       widthPx: imgWidth,
       heightPx: imgHeight,
     });
   }, [settings.photoX, settings.photoY]);
 
   const handlePhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
+    const targetInput = event.target;
+    if (targetInput.files && targetInput.files[0]) {
+      const file = targetInput.files[0];
       if (file.type === 'image/jpeg' || file.type === 'image/png') {
+        setIsUserPhotoDetailsLoading(true);
         setUserPhoto(file);
         const previewUrl = URL.createObjectURL(file);
         setUserPhotoPreview(previewUrl);
@@ -90,6 +93,18 @@ export default function HomePage() {
         const img = new window.Image();
         img.onload = () => {
           resetUserPhotoState(img.naturalWidth, img.naturalHeight);
+          setIsUserPhotoDetailsLoading(false);
+        };
+        img.onerror = () => {
+            toast({
+                title: translate('errorPhotoLoad'),
+                description: translate('errorPhotoLoadGeneric', {defaultValue: "Could not load the selected image for preview."}),
+                variant: 'destructive',
+            });
+            setUserPhoto(null);
+            setUserPhotoPreview(null);
+            setIsUserPhotoDetailsLoading(false);
+            if (targetInput) targetInput.value = ''; // Clear input value
         };
         img.src = previewUrl;
 
@@ -100,7 +115,10 @@ export default function HomePage() {
           description: translate('errorPhotoUploadInvalidType', {defaultValue: "Please upload a JPEG or PNG image."}),
           variant: 'destructive',
         });
+        if (targetInput) targetInput.value = ''; // Clear input value
       }
+    } else {
+        if (targetInput) targetInput.value = ''; // Clear input value if no file selected
     }
   };
 
@@ -117,12 +135,11 @@ export default function HomePage() {
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!userPhotoPreview || !previewContainerRef.current) return;
-    e.preventDefault(); // Prevent default browser drag behavior
+    e.preventDefault(); 
     setIsDragging(true);
     handleInteractionStart();
     
     const containerRect = previewContainerRef.current.getBoundingClientRect();
-    // Calculate click position relative to the container, then convert to percentage
     const clickXPercent = ((e.clientX - containerRect.left) / containerRect.width) * 100;
     const clickYPercent = ((e.clientY - containerRect.top) / containerRect.height) * 100;
 
@@ -137,15 +154,11 @@ export default function HomePage() {
     e.preventDefault();
     
     const containerRect = previewContainerRef.current.getBoundingClientRect();
-    // Calculate current mouse position relative to the container, then convert to percentage
     const currentXPercent = ((e.clientX - containerRect.left) / containerRect.width) * 100;
     const currentYPercent = ((e.clientY - containerRect.top) / containerRect.height) * 100;
     
     let newX = currentXPercent - dragStart.x;
     let newY = currentYPercent - dragStart.y;
-
-    // TODO: Add boundary checks if needed, to prevent dragging image completely out of view
-    // For now, allows free movement.
 
     setUserPhotoState(prev => ({ ...prev, x: newX, y: newY }));
   };
@@ -162,7 +175,7 @@ export default function HomePage() {
   
   const handleScaleChange = (newScale: number[]) => {
     if (!userPhotoPreview) return;
-    handleInteractionStart(); // Consider if this is needed for slider, maybe only on slider release
+    handleInteractionStart();
     setUserPhotoState(prev => ({ ...prev, scale: newScale[0] }));
   };
 
@@ -182,6 +195,12 @@ export default function HomePage() {
       setTemplateError(true);
       return;
     }
+
+    if (userPhotoState.widthPx === 0 || userPhotoState.heightPx === 0) {
+        toast({ title: translate('errorProcessingPhotoTitle', {defaultValue: "Photo Processing"}), description: translate('errorProcessingPhotoDesc', {defaultValue: "Please wait for the photo to be fully processed before generating."}), variant: 'default' });
+        return;
+    }
+
     setTemplateError(false);
     setCurrentTemplateOpacity(settings.eventImageTemplate.opacityOnIdle); 
 
@@ -189,10 +208,16 @@ export default function HomePage() {
     setGeneratedImage(null);
 
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      setIsGenerating(false);
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+       setIsGenerating(false);
+       return;
+    }
 
     const templateImg = new window.Image();
     templateImg.crossOrigin = "anonymous";
@@ -203,29 +228,29 @@ export default function HomePage() {
       canvas.height = templateImg.naturalHeight || settings.templateHeight || DEFAULT_TEMPLATE_HEIGHT;
 
       const userImg = new window.Image();
-      userImg.src = userPhotoPreview!; // Use preview URL which is object URL
+      userImg.src = userPhotoPreview!; 
       userImg.onload = () => {
-        // Calculate actual pixel dimensions and positions for drawing user photo
         const userPhotoAspectRatio = userPhotoState.widthPx / userPhotoState.heightPx;
         
-        // Base width/height for user photo based on admin settings (photoWidth/Height %)
-        // This forms the "viewport" or "max allowed area" for the user photo at scale 1
         let basePhotoDisplayWidth = (settings.photoWidth / 100) * canvas.width;
         let basePhotoDisplayHeight = (settings.photoHeight / 100) * canvas.height;
 
-        // Adjust base dimensions to fit within admin % while maintaining aspect ratio
-        if (userPhotoAspectRatio > (basePhotoDisplayWidth / basePhotoDisplayHeight)) {
-            basePhotoDisplayHeight = basePhotoDisplayWidth / userPhotoAspectRatio;
-        } else {
-            basePhotoDisplayWidth = basePhotoDisplayHeight * userPhotoAspectRatio;
+        // Defaulting to user photo's natural aspect ratio for calculations if keepAspectRatio is true
+        // If not keeping aspect ratio, photoWidth/Height settings from admin dictate dimensions directly
+        let finalPhotoWidthPx = basePhotoDisplayWidth * userPhotoState.scale;
+        let finalPhotoHeightPx = basePhotoDisplayHeight * userPhotoState.scale;
+
+        if (settings.eventImageTemplate.transformControls.keepAspectRatio) {
+          if (userPhotoAspectRatio > (basePhotoDisplayWidth / basePhotoDisplayHeight)) {
+              finalPhotoHeightPx = (basePhotoDisplayWidth / userPhotoAspectRatio) * userPhotoState.scale;
+          } else {
+              finalPhotoWidthPx = (basePhotoDisplayHeight * userPhotoAspectRatio) * userPhotoState.scale;
+          }
         }
+        
 
-        const finalPhotoWidthPx = basePhotoDisplayWidth * userPhotoState.scale;
-        const finalPhotoHeightPx = basePhotoDisplayHeight * userPhotoState.scale;
-
-        // User photo's top-left corner in canvas pixels, derived from percentage state
-        const photoDrawX = (userPhotoState.x / 100) * canvas.width - (finalPhotoWidthPx / 2); // Centered based on x,y being center point
-        const photoDrawY = (userPhotoState.y / 100) * canvas.height - (finalPhotoHeightPx / 2); // Centered based on x,y being center point
+        const photoDrawX = (userPhotoState.x / 100) * canvas.width - (finalPhotoWidthPx / 2); 
+        const photoDrawY = (userPhotoState.y / 100) * canvas.height - (finalPhotoHeightPx / 2);
 
 
         if (settings.eventImageTemplate.layering.userImageBelow) {
@@ -237,8 +262,7 @@ export default function HomePage() {
             ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
             ctx.globalAlpha = 1.0; 
         }
-
-        // Draw user's name
+        
         const nameFontSize = (settings.nameSize / 100) * Math.min(canvas.width, canvas.height) * 0.1;
         ctx.font = `bold ${nameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
         ctx.fillStyle = settings.uiTheme.primaryColor || '#FFFFFF';
@@ -278,11 +302,20 @@ export default function HomePage() {
     position: 'absolute',
     left: `${userPhotoState.x}%`,
     top: `${userPhotoState.y}%`,
-    width: `${(userPhotoState.widthPx / (settings.templateWidth || DEFAULT_TEMPLATE_WIDTH)) * 100 * userPhotoState.scale}%`,
-    transform: 'translate(-50%, -50%)', // Center the image on x,y coordinates
-    maxWidth: 'none', // Override any external max-width that might interfere
-    touchAction: 'none', // Important for pointer events on touch devices
+    width: settings.eventImageTemplate.transformControls.keepAspectRatio 
+      ? `${(userPhotoState.widthPx / (settings.templateWidth || DEFAULT_TEMPLATE_WIDTH)) * 100 * userPhotoState.scale}%`
+      : `${(settings.photoWidth / 100) * 100 * userPhotoState.scale}%`, // Width relative to container based on admin settings
+    height: settings.eventImageTemplate.transformControls.keepAspectRatio 
+      ? 'auto' // Maintain aspect ratio if width is set
+      : `${(settings.photoHeight / 100) * 100 * userPhotoState.scale}%`, // Height relative to container based on admin settings
+    aspectRatio: settings.eventImageTemplate.transformControls.keepAspectRatio 
+      ? `${userPhotoState.widthPx || 1} / ${userPhotoState.heightPx || 1}` 
+      : 'auto',
+    transform: 'translate(-50%, -50%)', 
+    maxWidth: 'none', 
+    touchAction: 'none', 
     cursor: isDragging ? 'grabbing' : 'grab',
+    objectFit: 'contain', 
   };
 
 
@@ -302,12 +335,17 @@ export default function HomePage() {
             <CardContent>
               <form onSubmit={generateImage} className="space-y-6">
                 <div>
-                  <Label htmlFor="photoUpload" className="text-lg font-medium flex items-center text-foreground">
+                  <Label htmlFor="photoUploadTrigger" className="text-lg font-medium flex items-center text-foreground">
                     <User className="mr-2 h-5 w-5" /> {translate('uploadPhotoLabel')}
                   </Label>
+                  <Input id="photoUploadInput" name="photoUpload" type="file" className="sr-only" accept="image/jpeg, image/png" onChange={handlePhotoUpload} />
                   <div 
+                    id="photoUploadTrigger"
                     className="mt-2 flex justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md border-input hover:border-primary transition-colors cursor-pointer"
                     onClick={() => document.getElementById('photoUploadInput')?.click()}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('photoUploadInput')?.click();}}
                   >
                     <div className="space-y-1 text-center">
                       {userPhotoPreview ? (
@@ -323,13 +361,9 @@ export default function HomePage() {
                         <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                       )}
                       <div className="flex text-sm text-muted-foreground">
-                        <Label
-                          htmlFor="photoUploadInput" 
-                          className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                        >
-                          <span>{translate('uploadPhotoPlaceholder')}</span>
-                          <Input id="photoUploadInput" name="photoUpload" type="file" className="sr-only" accept="image/jpeg, image/png" onChange={handlePhotoUpload} />
-                        </Label>
+                        <span className="font-medium text-primary hover:text-primary/80">
+                          {translate('uploadPhotoPlaceholder')}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground">{translate('photoUploadHint', { defaultValue: 'JPEG, PNG up to 5MB. Click/Tap to change.'})}</p>
                     </div>
@@ -358,26 +392,28 @@ export default function HomePage() {
                     </Label>
                     <Slider
                       id="photoScale"
-                      min={0.1}
+                      min={0.01} // Allow scaling down to almost invisible
                       max={2}
                       step={0.01}
                       value={[userPhotoState.scale]}
                       onValueChange={handleScaleChange}
-                      onPointerUp={handleInteractionEnd} // Reset opacity when slider released
+                      onPointerUp={handleInteractionEnd} 
                       className="w-full"
                     />
                   </div>
                 )}
 
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isGenerating}>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isGenerating || isUserPhotoDetailsLoading}>
                   {isGenerating ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       {translate('generatingImage')}
+                    </>
+                  ) : isUserPhotoDetailsLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {translate('processingPhotoMessage', { defaultValue: 'Processing photo...' })}
                     </>
                   ) : (
                     <>{translate('generateImageButton')}</>
@@ -408,30 +444,29 @@ export default function HomePage() {
                 onPointerDown={settings.eventImageTemplate.transformControls.draggable ? handlePointerDown : undefined}
                 onPointerMove={settings.eventImageTemplate.transformControls.draggable ? handlePointerMove : undefined}
                 onPointerUp={settings.eventImageTemplate.transformControls.draggable ? handlePointerUp : undefined}
-                onPointerLeave={settings.eventImageTemplate.transformControls.draggable ? handlePointerUp : undefined} // Also treat leave as up
+                onPointerLeave={settings.eventImageTemplate.transformControls.draggable ? handlePointerUp : undefined} 
               >
-                {isGenerating && (
+                {(isGenerating || isUserPhotoDetailsLoading) && !generatedImage && (
                   <div className="absolute inset-0 bg-muted rounded-lg flex items-center justify-center z-30">
                     <Skeleton className="w-full h-full rounded-lg" />
                   </div>
                 )}
 
-                {/* User Photo for Preview - Draggable & Scalable */}
-                {userPhotoPreview && (
+                {userPhotoPreview && userPhotoState.widthPx > 0 && userPhotoState.heightPx > 0 && (
                   <Image
                     ref={userImageRef}
                     src={userPhotoPreview}
                     alt="User photo"
-                    width={userPhotoState.widthPx || 300} // Provide a fallback width
-                    height={userPhotoState.heightPx || 300} // Provide a fallback height
+                    width={userPhotoState.widthPx} 
+                    height={userPhotoState.heightPx}
                     style={previewUserImageStyle}
-                    className="object-contain"
-                    draggable={false} // Prevent native image drag
+                    className="object-contain" // Changed from object-cover for better scaling
+                    draggable={false} 
                     data-ai-hint="user uploaded interactive"
+                    priority // Load user photo quickly for interaction
                   />
                 )}
 
-                {/* Template Image for Preview */}
                 {settings.eventImageTemplate.url && (
                    <Image
                     src={settings.eventImageTemplate.url}
@@ -441,11 +476,10 @@ export default function HomePage() {
                     className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10 transition-opacity duration-200"
                     style={{ opacity: currentTemplateOpacity }}
                     data-ai-hint="event poster template overlay"
-                    priority // Ensure template loads quickly for preview
+                    priority 
                   />
                 )}
                 
-                {/* Final Generated Image Display */}
                 {!isGenerating && generatedImage && (
                   <Image 
                     src={generatedImage} 
@@ -457,7 +491,6 @@ export default function HomePage() {
                   />
                 )}
 
-                {/* Placeholder if no template and no generated image */}
                 {!isGenerating && !generatedImage && !settings.eventImageTemplate.url && (
                     <div 
                         className="w-full h-full bg-muted/30 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-input"
@@ -469,7 +502,6 @@ export default function HomePage() {
                         <p className="text-muted-foreground mt-2">{templateError ? translate('errorTemplateLoad') : translate('noImageGenerated')}</p>
                     </div>
                 )}
-                 {/* Hint for interaction */}
                 {userPhotoPreview && !generatedImage && settings.eventImageTemplate.transformControls.draggable && (
                     <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 p-1 px-2 bg-black/50 text-white text-xs rounded-md z-20 pointer-events-none flex items-center">
                        <Move size={12} className="mr-1" /> {translate('dragToMoveHint', {defaultValue: 'Drag to move'})}

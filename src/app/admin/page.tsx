@@ -8,11 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// import { Textarea } from '@/components/ui/textarea'; // Removed
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/language-context';
 import { useAppSettings } from '@/context/app-settings-context';
-import { UploadCloud, Save, Settings, Image as ImageIconLucide, Palette, Ratio } from 'lucide-react';
+import { UploadCloud, Save, Settings, Image as ImageIconLucide, Palette, Ratio, Loader2 } from 'lucide-react';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 
@@ -32,7 +31,6 @@ export default function AdminPage() {
   const [localSettings, setLocalSettings] = useState(settings);
 
   useEffect(() => {
-    // Ensure localSettings always reflects the context, especially after context might remove overlayText
     const currentContextSettings = JSON.parse(JSON.stringify(settings));
     if ('overlayText' in currentContextSettings) {
       delete currentContextSettings.overlayText;
@@ -46,8 +44,9 @@ export default function AdminPage() {
 
 
   const handleTemplateUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
+    const targetInput = event.target;
+    if (targetInput.files && targetInput.files[0]) {
+      const file = targetInput.files[0];
       if (file.type === 'image/png') {
         setTemplateFile(file);
         setTemplatePreview(URL.createObjectURL(file));
@@ -57,11 +56,14 @@ export default function AdminPage() {
           description: translate('errorUploadPngOnly', {defaultValue: "Please upload a PNG image."}),
           variant: 'destructive',
         });
+        if (targetInput) targetInput.value = ''; 
       }
+    } else {
+         if (targetInput) targetInput.value = ''; 
     }
   };
 
-  const handleSettingChange = (event: ChangeEvent<HTMLInputElement /*| HTMLTextAreaElement*/>) => { // Removed HTMLTextAreaElement
+  const handleSettingChange = (event: ChangeEvent<HTMLInputElement>) => { 
     const { name, value, type } = event.target;
     const keys = name.split('.');
     
@@ -96,7 +98,9 @@ export default function AdminPage() {
       try {
         newTemplateUrl = await uploadTemplate(templateFile);
         if(!newTemplateUrl) throw new Error("Template URL not returned");
-        setTemplateFile(null);
+        setTemplateFile(null); // Clear file after successful processing
+        const templateInput = document.getElementById('templateUploadInput') as HTMLInputElement;
+        if (templateInput) templateInput.value = ''; // Clear the file input
         toast({ title: translate('templateUploadSuccess') });
       } catch (error) {
         console.error("Error uploading template:", error);
@@ -118,7 +122,6 @@ export default function AdminPage() {
           url: newTemplateUrl || settings.eventImageTemplate.url,
         }
       };
-      // Ensure overlayText is not saved
       if ('overlayText' in settingsToSave) {
         delete (settingsToSave as any).overlayText;
       }
@@ -146,22 +149,26 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="templateUploadInput" className="text-lg font-medium text-foreground">{translate('adminTemplateUploadLabel')}</Label>
+                <Label htmlFor="templateUploadTrigger" className="text-lg font-medium text-foreground">{translate('adminTemplateUploadLabel')}</Label>
+                <Input id="templateUploadInput" name="templateUploadInput" type="file" className="sr-only" accept="image/png" onChange={handleTemplateUpload} />
                 <div className="mt-2 flex items-center space-x-4">
-                    <div className="flex-grow flex justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md border-input hover:border-primary transition-colors">
-                    <div className="space-y-1 text-center">
-                        <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <div className="flex text-sm text-muted-foreground">
-                        <Label
-                            htmlFor="templateUploadInput"
-                            className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                        >
-                            <span>{translate('uploadFileButton', {defaultValue: 'Upload a file'})}</span>
-                            <Input id="templateUploadInput" name="templateUploadInput" type="file" className="sr-only" accept="image/png" onChange={handleTemplateUpload} />
-                        </Label>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{translate('pngOnlyHint', {defaultValue: 'PNG only.'})} {translate('recommendedSizeHint', {defaultValue: 'Recommended:'})} {localSettings.templateWidth || DEFAULT_TEMPLATE_WIDTH}x{localSettings.templateHeight || DEFAULT_TEMPLATE_HEIGHT}px</p>
-                    </div>
+                    <div 
+                      id="templateUploadTrigger"
+                      className="flex-grow flex justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md border-input hover:border-primary transition-colors cursor-pointer"
+                      onClick={() => document.getElementById('templateUploadInput')?.click()}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('templateUploadInput')?.click();}}
+                    >
+                      <div className="space-y-1 text-center">
+                          <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                          <div className="flex text-sm text-muted-foreground">
+                            <span className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                              {translate('uploadFileButton', {defaultValue: 'Upload a file'})}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{translate('pngOnlyHint', {defaultValue: 'PNG only.'})} {translate('recommendedSizeHint', {defaultValue: 'Recommended:'})} {localSettings.templateWidth || DEFAULT_TEMPLATE_WIDTH}x{localSettings.templateHeight || DEFAULT_TEMPLATE_HEIGHT}px</p>
+                      </div>
                     </div>
                     {templatePreview && (
                         <div className="w-1/3">
@@ -248,26 +255,10 @@ export default function AdminPage() {
 
           <Card className="shadow-xl bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle className="flex items-center text-primary"><Settings className="mr-2 h-6 w-6" />{translate('configSectionTitle')}</CardTitle> {/* configSectionTitle might need update if it was specific to overlayText */}
-              <CardDescription className="text-muted-foreground">{translate('adminConfigDescription')}</CardDescription> {/* Same for adminConfigDescription */}
+              <CardTitle className="flex items-center text-primary"><Settings className="mr-2 h-6 w-6" />{translate('configSectionTitle')}</CardTitle>
+              <CardDescription className="text-muted-foreground">{translate('adminConfigDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Overlay Text Section Removed */}
-              {/*
-              <div>
-                <Label htmlFor="overlayText" className="text-lg font-medium text-foreground">{translate('adminOverlayTextLabel')}</Label>
-                <Textarea
-                  id="overlayText"
-                  name="overlayText"
-                  value={(localSettings as any).overlayText || ''} // Cast to any if overlayText is removed from type
-                  onChange={handleSettingChange}
-                  placeholder={translate('adminOverlayTextPlaceholder')}
-                  className="mt-2 bg-input text-foreground"
-                  rows={2}
-                />
-              </div>
-              */}
-
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-foreground border-b border-border pb-2">{translate('photoSettingsTitle')}</h3>
                 <p className="text-sm text-muted-foreground">{translate('adminPhotoSettingsDescription', {defaultValue: "Define the initial position and size of the user's photo. Users can adjust this on the main page."})}</p>
@@ -314,10 +305,7 @@ export default function AdminPage() {
           <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={settingsLoading}>
             {settingsLoading ? (
                <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 {translate('savingConfig')}
               </>
             ) : (
