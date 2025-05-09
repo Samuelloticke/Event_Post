@@ -15,10 +15,8 @@ import { UploadCloud, Save, Settings, Image as ImageIconLucide, Palette, Ratio, 
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 
-
 const DEFAULT_TEMPLATE_WIDTH = 1080;
 const DEFAULT_TEMPLATE_HEIGHT = 1350;
-
 
 export default function AdminPage() {
   const { toast } = useToast();
@@ -26,8 +24,10 @@ export default function AdminPage() {
   const { settings, setSettings, uploadTemplate, saveSettings: saveContextSettings, loading: settingsLoading } = useAppSettings();
 
   const [templateFile, setTemplateFile] = useState<File | null>(null);
-  const [templatePreview, setTemplatePreview] = useState<string | null>(settings.eventImageTemplate.url || null);
+  // const [templatePreview, setTemplatePreview] = useState<string | null>(settings.eventImageTemplate.url || null);
   
+  const [templatePreview, setTemplatePreview] = useState<string>( settings.eventImageTemplate.url || '/default-template.png' );
+
   const [localSettings, setLocalSettings] = useState(settings);
 
   useEffect(() => {
@@ -39,6 +39,8 @@ export default function AdminPage() {
 
     if (settings.eventImageTemplate.url) {
       setTemplatePreview(settings.eventImageTemplate.url);
+    } else {
+      setTemplatePreview('/default-template.png');
     }
   }, [settings]);
 
@@ -265,19 +267,19 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="photoX" className="text-foreground">{translate('adminPhotoXLabel')} (%)</Label>
-                    <Input id="photoX" name="photoX" type="number" value={localSettings.photoX || ''} onChange={handleSettingChange} placeholder="10" className="mt-1 bg-input text-foreground" />
+                    <Input id="photoX" name="photoX" type="number" value={localSettings.photoX || ''} onChange={handleSettingChange} placeholder="50" className="mt-1 bg-input text-foreground" />
                   </div>
-                  <div>
+                  <div> 
                     <Label htmlFor="photoY" className="text-foreground">{translate('adminPhotoYLabel')} (%)</Label>
-                    <Input id="photoY" name="photoY" type="number" value={localSettings.photoY || ''} onChange={handleSettingChange} placeholder="10" className="mt-1 bg-input text-foreground" />
+                    <Input id="photoY" name="photoY" type="number" value={localSettings.photoY || ''} onChange={handleSettingChange} placeholder="32" className="mt-1 bg-input text-foreground" />
                   </div>
                   <div>
                     <Label htmlFor="photoWidth" className="text-foreground">{translate('adminPhotoWidthLabel')} (%)</Label>
-                    <Input id="photoWidth" name="photoWidth" type="number" value={localSettings.photoWidth || ''} onChange={handleSettingChange} placeholder="30" className="mt-1 bg-input text-foreground" />
+                    <Input id="photoWidth" name="photoWidth" type="number" value={localSettings.photoWidth || ''} onChange={handleSettingChange} placeholder="400" className="mt-1 bg-input text-foreground" />
                   </div>
                   <div>
                     <Label htmlFor="photoHeight" className="text-foreground">{translate('adminPhotoHeightLabel')} (%)</Label>
-                    <Input id="photoHeight" name="photoHeight" type="number" value={localSettings.photoHeight || ''} onChange={handleSettingChange} placeholder="40" className="mt-1 bg-input text-foreground" />
+                    <Input id="photoHeight" name="photoHeight" type="number" value={localSettings.photoHeight || ''} onChange={handleSettingChange} placeholder="400" className="mt-1 bg-input text-foreground" />
                   </div>
                 </div>
               </div>
@@ -330,4 +332,3 @@ declare module '@/context/language-context' {
     translate(key: keyof typeof import('@/locales/en.json'), params?: Record<string, string | number>): string;
   }
 }
-
