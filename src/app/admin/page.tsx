@@ -35,7 +35,7 @@ export default function AdminPage() {
     if ('overlayText' in currentContextSettings) {
       delete currentContextSettings.overlayText;
     }
-    setLocalSettings(currentContextSettings);
+    setLocalSettings(currentContextSettings); 
 
     if (settings.eventImageTemplate.url) {
       setTemplatePreview(settings.eventImageTemplate.url);
